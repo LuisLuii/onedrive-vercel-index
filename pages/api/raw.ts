@@ -33,7 +33,7 @@ const replaceUrl = function(url) {
   if (dns){
     return url.replace(domain, dns)
   }else{
-    url
+    return url
   }
 
 }

@@ -8,7 +8,7 @@ import siteConfig from '../../config/site.config'
 import { revealObfuscatedToken } from '../../utils/oAuthHandler'
 import { compareHashedToken } from '../../utils/protectedRouteHandler'
 import { getOdAuthTokens, storeOdAuthTokens } from '../../utils/odAuthTokenStore'
-import { runCorsMiddleware } from './raw'
+import { runCorsMiddleware } from './raw' 
 
 const basePath = pathPosix.resolve('/', siteConfig.baseDirectory)
 const clientSecret = revealObfuscatedToken(apiConfig.obfuscatedClientSecret)
@@ -134,7 +134,6 @@ export async function checkAuthRoute(
 
     // Handle request and check for header 'od-protected-token'
     const odProtectedToken = await axios.get(token.data['@microsoft.graph.downloadUrl'])
-    // console.log(odTokenHeader, odProtectedToken.data.trim())
 
     if (
       !compareHashedToken({
@@ -179,20 +178,17 @@ async function getContentWithHeaders(url, headers, next, sort) {
     },
     
   })
-  console.log("folderData",folderData)
   // const result = await gatherResponse(folderData);
   return folderData.data;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // If method is POST, then the API is called by the client to store acquired tokens
-  console.log("in", req.method)
   if (req.method === 'POST') {
     const { obfuscatedAccessToken, accessTokenExpiry, obfuscatedRefreshToken } = req.body
     const accessToken = revealObfuscatedToken(obfuscatedAccessToken)
     const refreshToken = revealObfuscatedToken(obfuscatedRefreshToken)
     
-    console.log("1")
     if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {
       res.status(400).send('Invalid request body')
       return
@@ -205,34 +201,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // If method is GET, then the API is a normal request to the OneDrive API for files or folders
   const { path = '/', raw = false, next = '', sort = '' } = req.query
-  console.log("path", path)
   // Set edge function caching for faster load times, check docs:
   // https://vercel.com/docs/concepts/functions/edge-caching
   res.setHeader('Cache-Control', apiConfig.cacheControlHeader)
-  console.log("1")
   // Sometimes the path parameter is defaulted to '[...path]' which we need to handle
   if (path === '[...path]') {
     res.status(400).json({ error: 'No path specified.' })
     return
   }
-  console.log("2")
   // If the path is not a valid path, return 400
   if (typeof path !== 'string') {
     res.status(400).json({ error: 'Path query invalid.' })
     return
   }
-  console.log("3")
   // Besides normalizing and making absolute, trailing slashes are trimmed
   const cleanPath = pathPosix.resolve('/', pathPosix.normalize(path)).replace(/\/$/, '')
-  console.log("4", cleanPath)
   // Validate sort param
   if (typeof sort !== 'string') {
     res.status(400).json({ error: 'Sort query invalid.' })
     return
   }
-  console.log("5")
   const accessToken = await getAccessToken()
-  console.log("6")
   // Return error 403 if access_token is empty
   if (!accessToken) {
     res.status(403).json({ error: 'No access token.' })
@@ -242,21 +231,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Handle protected routes authentication
   const { code, message } = await checkAuthRoute(cleanPath, accessToken, req.headers['od-protected-token'] as string)
 
-  console.log("7")
   // Status code other than 200 means user has not authenticated yet
   if (code !== 200) {
     res.status(code).json({ error: message })
     return
   }
 
-  console.log("8")
   // If message is empty, then the path is not protected.
   // Conversely, protected routes are not allowed to serve from cache.
   if (message !== '') {
     res.setHeader('Cache-Control', 'no-cache')
   }
 
-  console.log("9")
   const requestPath = encodePath(cleanPath)
   // Handle response from OneDrive API
   const requestUrl = `${apiConfig.driveApi}/root${requestPath}`
@@ -271,11 +257,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let body: any = null
 
   let isSharedFolder = false
-  let concatPath = ""
   let sharedPath = ""
   let normalPath = ""
   for (let levlelPath in paths) {
-    concatPath = "/" + paths[levlelPath]
     
     if ((!normalPath && !sharedPath) && (paths[levlelPath])) paths[levlelPath] = ":/" + paths[levlelPath];
     let uri
@@ -288,7 +272,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       apiConfig.graphApi + 
       "/v1.0/me/drive/root" +
       encodeURI(tempPath) ;
-      console.log("eeee", uri)
       body = await getContentWithHeaders(uri, {
         Authorization: "Bearer " + accessToken,
       }, next, sort);
@@ -310,19 +293,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Authorization: "Bearer " + accessToken,
       }, next, sort);
       if (body && body.children && body.children.length > 0) {
-        sharedPath = body.children[0].parentReference.path
+
+
+        sharedPath = sharedPath + body.children[0].parentReference.path
         sharedPath = decodeURI(sharedPath)
         
       }
     }else{
       if (body && body.children && body.children[0] && body.children[0].parentReference&&body.children[0].parentReference.path  ){
+        if (!isSharedFolder){
           normalPath = normalPath + body.children[0].parentReference&&body.children[0].parentReference.path.split(":")[1]
           normalPath = decodeURI(normalPath)
+        } else {
+          sharedPath = sharedPath + (body.children[0].parentReference && body.children[0].parentReference.path.split(":")[1])
+          sharedPath = decodeURI(sharedPath)
+          
+        }
       }
     }
   }
 
-  console.log("response", body)
 
 
 
@@ -337,8 +327,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 
 
-
-  console.log("raw",raw)
   // Go for file raw download link, add CORS headers, and redirect to @microsoft.graph.downloadUrl
   // (kept here for backwards compatibility, and cache headers will be reverted to no-cache)
   
@@ -387,7 +375,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const file = body.children[i];
         if (file.remoteItem) {
           const remoteItemDriveId = file.remoteItem.parentReference.driveId
-          const remoteItemId = file.remoteItem.id
           const retrieveShareFileUri = apiConfig.graphApi + "/v1.0/drives/" + remoteItemDriveId + "/root" + "?expand=children(select=name,size,parentReference,lastModifiedDateTime,@microsoft.graph.downloadUrl,remoteItem)";
           const sharedFolderResBody = await getContentWithHeaders(retrieveShareFileUri, {
             Authorization: "Bearer " + accessToken,
@@ -420,14 +407,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    
-    console.log("done", resData)
-
-
-
-
-
-    console.log("data",JSON.stringify(resData))
     // Extract next page token from full @odata.nextLink
     const nextPage = resData['@odata.nextLink']
       ? resData['@odata.nextLink'].match(/&\$skiptoken=(.+)/i)[1]
@@ -438,18 +417,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (nextPage) {
 
-        console.log("folderData", resData)
-        console.log("nextPage", nextPage)
         res.status(200).json({ folder: resData, next: nextPage })
     } else {
-        console.log("folderData2", resData)
         res.status(200).json({ folder: resData })
     }
     return
   
-    // console.log("end", identityData)
-    // res.status(200).json({ file: identityData })
-    // return
   } catch (error: any) {
     res.status(error?.response?.code ?? 500).json({ error: error?.response?.data ?? 'Internal server error.' })
     return

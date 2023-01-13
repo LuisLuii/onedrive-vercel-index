@@ -159,7 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if ('@microsoft.graph.downloadUrl' in body) {
       // Only proxy raw file content response for files up to 4MB
       if (proxy && 'size' in body && body['size'] < 4194304) {
-        const { headers, data: stream } = await axios.get(body['@microsoft.graph.downloadUrl'] as string, {
+        const { headers, data: stream } = await axios.get(replaceUrl(body['@microsoft.graph.downloadUrl']) as string, {
           responseType: 'stream',
         })
         headers['Cache-Control'] = cacheControlHeader
@@ -167,7 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         res.writeHead(200, headers)
         stream.pipe(res)
       } else {
-        res.redirect(body['@microsoft.graph.downloadUrl'])
+        res.redirect(replaceUrl(body['@microsoft.graph.downloadUrl']))
       }
     } else {
       res.status(404).json({ error: 'No download url found.' })

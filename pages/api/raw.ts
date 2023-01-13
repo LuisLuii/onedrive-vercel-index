@@ -175,7 +175,8 @@ for (let levlelPath in paths) {
   }
   return 
   } catch (error) {
-      return {"error": error}
+    res.status(200).json({ error: error })
+    return 
   }
   
 }

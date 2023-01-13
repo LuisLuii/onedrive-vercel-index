@@ -249,6 +249,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Whether path is root, which requires some special treatment
   const isRoot = requestPath === ''
 
+  try {
+
   let paths = path.split('/').filter(n => n)
   if (paths.length === 0) {
     paths = [""]
@@ -259,6 +261,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let isSharedFolder = false
   let sharedPath = ""
   let normalPath = ""
+  console.log("1")
   for (let levlelPath in paths) {
     
     if ((!normalPath && !sharedPath) && (paths[levlelPath])) paths[levlelPath] = ":/" + paths[levlelPath];
@@ -333,6 +336,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 
   if (raw) {
+    console.log("rrrr")
     await runCorsMiddleware(req, res)
     res.setHeader('Cache-Control', 'no-cache')
 
@@ -426,5 +430,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     res.status(error?.response?.code ?? 500).json({ error: error?.response?.data ?? 'Internal server error.' })
     return
+  }
+  } catch (error) {
+    
+    res.status(200).json({ error: error })
   }
 }

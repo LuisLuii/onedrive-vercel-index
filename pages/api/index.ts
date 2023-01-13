@@ -1,7 +1,7 @@
 import { posix as pathPosix } from 'path'
 
 import type { NextApiRequest, NextApiResponse } from 'next'
-import axios, { all } from 'axios'
+import axios from 'axios'
 
 import apiConfig from '../../config/api.config'
 import siteConfig from '../../config/site.config'
